@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "main-front": "storagedetective"
+  },
+  "targets": {
+    "storagedetective": {
+      "hosting": {
+        "main-front": [
+          "storagedetective"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

@@ -1,0 +1,19 @@
+{
+  "hosting": [
+    {
+      "target": "main-front",  // <-- Change "app" to "main" here
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ]
+}

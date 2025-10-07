@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe DevOps - The Conversational Cloud Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712; /* A deeper, richer black */
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #4f46e5, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-glow {
+            box-shadow: 0 0 150px 20px rgba(79, 70, 229, 0.25);
+        }
+        .feature-card {
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(55, 65, 81, 0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(79, 70, 229, 0.3);
+        }
+        /* For the animated terminal */
+        .terminal-header { background-color: #1f2937; }
+        .terminal-body { 
+            font-family: 'Roboto Mono', monospace;
+            background-color: #111827;
+        }
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background-color: #a5b4fc;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            from, to { background-color: transparent; }
+            50% { background-color: #a5b4fc; }
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-gray-900/50 backdrop-blur-lg border-b border-gray-800">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold tracking-tight">
+                <a href="#"><span class="gradient-text">Vibe</span><span class="text-white">DevOps</span></a>
+            </div>
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="#features" class="text-gray-400 hover:text-white transition-colors">Features</a>
+                <a href="#demo" class="text-gray-400 hover:text-white transition-colors">Demo</a>
+            </nav>
+            <a href="login.html" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                Get Started
+            </a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main class="relative overflow-hidden">
+        <div class="container mx-auto px-6 pt-24 pb-32 text-center hero-glow">
+            <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-white leading-tight">
+                Your Cloud, Your <span class="gradient-text">Conversation</span>.
+            </h1>
+            <p class="mt-6 text-lg text-gray-400 max-w-3xl mx-auto">
+                Vibe DevOps is the AI command center for Google Cloud. Describe your perfect deployment in plain English, and our intelligent assistant handles the infrastructure, CI/CD pipelines, and even helps fix errors.
+            </p>
+            <div class="mt-10">
+                <a href="login.html" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-lg shadow-xl text-lg transition-transform transform hover:scale-105 inline-block">
+                    Deploy Your First App Free
+                </a>
+            </div>
+        </div>
+
+        <!-- How it works -->
+        <section class="container mx-auto px-6 pb-24">
+            <div class="grid md:grid-cols-3 gap-8 text-center">
+                <div class="p-4">
+                    <div class="text-4xl font-bold gradient-text">1.</div>
+                    <h3 class="text-xl font-bold text-white mt-2">Chat with Vibe</h3>
+                    <p class="text-gray-400 mt-1">Start a conversation. Describe your app, add a database, or set up secrets.</p>
+                </div>
+                <div class="p-4">
+                    <div class="text-4xl font-bold gradient-text">2.</div>
+                    <h3 class="text-xl font-bold text-white mt-2">Review the Plan</h3>
+                    <p class="text-gray-400 mt-1">Vibe confirms its understanding, shows you the deployment plan, and provides a cost estimate.</p>
+                </div>
+                <div class="p-4">
+                    <div class="text-4xl font-bold gradient-text">3.</div>
+                    <h3 class="text-xl font-bold text-white mt-2">Deploy with Confidence</h3>
+                    <p class="text-gray-400 mt-1">Confirm the plan. Vibe handles the rest, from provisioning infrastructure to deploying your code.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visual Demo Section -->
+        <section id="demo" class="container mx-auto px-6 pb-32">
+            <div class="max-w-4xl mx-auto bg-gray-900 rounded-xl shadow-2xl border border-gray-800 overflow-hidden">
+                <div class="terminal-header h-11 flex items-center px-4">
+                    <div class="flex space-x-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                </div>
+                <div id="terminal" class="terminal-body p-6 text-sm min-h-[300px]">
+                    <div id="line1"></div>
+                    <div id="line2" class="hidden"></div>
+                    <div id="line3" class="hidden"></div>
+                    <div id="line4" class="hidden"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="bg-gray-900/70 py-24">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-4xl font-bold text-white">A True DevOps Assistant</h2>
+                    <p class="mt-4 text-gray-400 max-w-2xl mx-auto">Vibe isn't just a deployment script. It's an intelligent platform designed for the entire development lifecycle.</p>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Feature Cards -->
+                    <div class="feature-card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold text-white">Full CI/CD Automation</h3>
+                        <p class="mt-2 text-gray-400">Install our GitHub App and achieve true "Push to Deploy". Vibe automatically builds and deploys your code on every push.</p>
+                    </div>
+                    <div class="feature-card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold text-white">Stateful Applications</h3>
+                        <p class="mt-2 text-gray-400">Effortlessly provision managed Postgres or MySQL databases and securely inject connection strings into your app.</p>
+                    </div>
+                    <div class="feature-card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold text-white">Secure Secrets Management</h3>
+                        <p class="mt-2 text-gray-400">Never commit a secret again. Vibe securely stores your API keys and credentials in Google Secret Manager.</p>
+                    </div>
+                    <div class="feature-card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold text-white">Pre-Deployment Cost Estimates</h3>
+                        <p class="mt-2 text-gray-400">Ask "how much will this cost?" and get a real-time estimate before you deploy, avoiding any surprises on your bill.</p>
+                    </div>
+                    <div class="feature-card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold text-white">AI-Powered Debugging</h3>
+                        <p class="mt-2 text-gray-400">If a build fails, Vibe analyzes the logs and suggests a fix in plain English. It’s like having a senior DevOps engineer on call.</p>
+                    </div>
+                    <div class="feature-card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold text-white">Custom Domains</h3>
+                        <p class="mt-2 text-gray-400">Map your own domains to any application. Vibe guides you through the simple verification and mapping process.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+         <!-- Final CTA Section -->
+        <section class="container mx-auto px-6 py-32 text-center">
+            <h2 class="text-4xl font-bold text-white">Ready to change how you deploy?</h2>
+            <p class="mt-4 text-lg text-gray-400 max-w-xl mx-auto">Stop wrestling with YAML and start a conversation with your cloud.</p>
+            <div class="mt-8">
+                <a href="login.html" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-lg shadow-xl text-lg transition-transform transform hover:scale-105 inline-block">
+                    Start Building for Free
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 border-t border-gray-800">
+        <div class="container mx-auto px-6 py-8 text-center text-gray-500">
+            <p>&copy; 2025 Vibe DevOps. The future of cloud is conversational.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- Animated Terminal Logic ---
+        const terminal = document.getElementById('terminal');
+        const line1 = document.getElementById('line1');
+        const line2 = document.getElementById('line2');
+        const line3 = document.getElementById('line3');
+        const line4 = document.getElementById('line4');
+
+        const commands = [
+            { el: line1, text: "deploy my nodejs api from the 'prod-api' repo", isUser: true },
+            { el: line2, text: "Got it. I'll deploy the 'main' branch to a Cloud Run service in 'us-central1'. Does that sound right?", isUser: false },
+            { el: line3, text: "perfect, but also add a small postgres database", isUser: true },
+            { el: line4, text: "Plan updated. I've added a 'db-g1-small' Postgres instance and will inject the connection string as a secret. Ready to deploy?", isUser: false }
+        ];
+
+        function type(element, text, isUser, callback) {
+            let i = 0;
+            const speed = 50;
+            element.innerHTML = isUser ? `<span class="text-indigo-400">➜</span> <span class="text-gray-200"></span><span class="cursor"></span>` : `<span class="text-green-400">Vibe:</span> <span class="text-gray-300"></span>`;
+            const target = element.children[1];
+
+            function typeWriter() {
+                if (i < text.length) {
+                    target.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, speed);
+                } else {
+                    if (isUser) element.children[2].remove(); // Remove cursor when done
+                    if (callback) setTimeout(callback, 800);
+                }
+            }
+            typeWriter();
+        }
+
+        function startAnimation() {
+            type(commands[0].el, commands[0].text, commands[0].isUser, () => {
+                commands[1].el.classList.remove('hidden');
+                type(commands[1].el, commands[1].text, commands[1].isUser, () => {
+                    commands[2].el.classList.remove('hidden');
+                    type(commands[2].el, commands[2].text, commands[2].isUser, () => {
+                        commands[3].el.classList.remove('hidden');
+                        type(commands[3].el, commands[3].text, commands[3].isUser);
+                    });
+                });
+            });
+        }
+
+        // Use Intersection Observer to start animation only when visible
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                setTimeout(startAnimation, 500); // Start after a short delay
+                observer.disconnect(); // Animate only once
+            }
+        }, { threshold: 0.6 });
+
+        observer.observe(terminal);
+    </script>
+
+</body>
+</html>
+
