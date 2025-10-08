@@ -22,10 +22,9 @@ METADATA_BUCKET = "storagedetective.firebasestorage.app"
 METADATA_PREFIX = "json/"
 
 # --- THRESHOLDS FOR IMAGE SEARCH ---
-# For dot product distance: LOWER = MORE similar
-# Typical ranges: 0.0-0.5 (excellent), 0.5-0.8 (good), 0.8-1.2 (fair), >1.2 (poor)
-IMAGE_SEARCH_MAX_DISTANCE = 0.9  # Only show results with distance < 0.9
-IMAGE_SEARCH_MIN_THRESHOLD = 0.7  # Only show results with dot product > 0.5
+IMAGE_SEARCH_MIN_THRESHOLD = 0.75  # Normal threshold
+IMAGE_SEARCH_FALLBACK_THRESHOLD = 0.0  # For "at least 1 result" fallback
+
 # Maximum candidates to fetch
 MAX_CANDIDATES = 30
 
@@ -57,7 +56,6 @@ def load_product_metadata():
                     json_string = blob.download_as_string()
                     json_data = json.loads(json_string)
                     
-                    # MORE FLEXIBLE PARSING
                     if 'structData' in json_data:
                         product = json_data['structData']
                         product_id = product.get('internalId') or json_data.get('id')
@@ -66,37 +64,35 @@ def load_product_metadata():
                         product_id = product.get('internalId') or product.get('id')
                     
                     if not product_id:
-                        logging.warning(f"No ID found in {blob.name}, JSON: {json_string[:200]}")
+                        logging.warning(f"No ID found in {blob.name}")
                         continue
                     
-                    # MORE FLEXIBLE IMAGE URL EXTRACTION
-                    image_url = ""
-                    if 'images' in product and isinstance(product['images'], list) and len(product['images']) > 0:
-                        if isinstance(product['images'][0], dict):
-                            image_url = product['images'][0].get('uri', product['images'][0].get('url', ''))
-                        else:
-                            image_url = product['images'][0]  # Direct URL
+                    image_urls = []
+                    if 'images' in product and isinstance(product['images'], list):
+                        for img in product['images']:
+                            if isinstance(img, dict):
+                                url = img.get('uri', img.get('url', ''))
+                                if url:
+                                    image_urls.append(url)
+                            elif isinstance(img, str):
+                                image_urls.append(img)
                     elif 'uri' in product:
-                        image_url = product['uri']
+                        image_urls = [product['uri']]
                     elif 'imageUrl' in product:
-                        image_url = product['imageUrl']
-                    elif 'image' in product:
-                        image_url = product['image']
+                        image_urls = [product['imageUrl']]
                     
-                    if not image_url:
-                        logging.warning(f"No image URL for {product.get('title', 'unknown')} (ID: {product_id})")
-                    
-                    # Cache metadata
                     PRODUCT_METADATA_CACHE[product_id] = {
-                        'title': product.get('title', product.get('name', 'Unknown')),
+                        'title': product.get('title', 'Unknown'),
                         'description': product.get('description', ''),
                         'location': product.get('productLocation', product.get('location', 'N/A')),
-                        'imageUrl': image_url,
+                        'imageUrls': image_urls,
+                        'imageUrl': image_urls[0] if image_urls else '',
                         'categories': product.get('categories', []),
-                        'available_time': product.get('available_time', '')
+                        'available_time': product.get('available_time', ''),
+                        'coordinates': product.get('coordinates', None)
                     }
+                    
                     count += 1
-                    logging.info(f"Loaded: {product.get('title', 'Unknown')} - Image: {'Yes' if image_url else 'NO'}")
                         
                 except Exception as e:
                     logging.warning(f"Failed to load metadata from {blob.name}: {e}")
@@ -129,7 +125,7 @@ def find_product(request):
 
     image_base64 = request_json.get('image_base64')
     text_query = request_json.get('text_query')
-    num_results = int(request_json.get('num_results', 1))
+    num_results = int(request_json.get('num_results', 20))
     offset = int(request_json.get('offset', 0))
 
     if not image_base64 and not text_query:
@@ -153,22 +149,21 @@ def find_product(request):
         # Search Vector Search
         similar_products = search_similar_products(query_embedding, MAX_CANDIDATES)
         
-        # Log raw results for debugging
-        logging.info(f"=== RAW RESULTS (top 10) ===")
-        for i, p in enumerate(similar_products[:10]):
-            meta = PRODUCT_METADATA_CACHE.get(p['id'], {})
-            logging.info(f"#{i+1}: {meta.get('title', 'Unknown'):30s} Distance: {p['distance']:.4f}")
-        
         # Apply intelligent filtering
         if search_mode == 'text':
             filtered_products = filter_text_search_smart(similar_products, text_query)
         else:
             filtered_products = filter_image_search_smart(similar_products)
+            
+            # NEW: If image search returns 0 results, get at least the best 1
+            if len(filtered_products) == 0:
+                logging.info("No results above threshold - returning best match")
+                filtered_products = filter_image_search_fallback(similar_products)
+                
+                if len(filtered_products) > 0:
+                    filtered_products[0]['is_low_confidence'] = True
         
         logging.info(f"=== AFTER FILTERING: {len(filtered_products)} products ===")
-        for i, p in enumerate(filtered_products[:5]):
-            meta = PRODUCT_METADATA_CACHE.get(p['id'], {})
-            logging.info(f"#{i+1}: {meta.get('title', 'Unknown'):30s} Distance: {p['distance']:.4f} Score: {p.get('match_score', 0):.1f}%")
         
         # Pagination
         paginated_products = filtered_products[offset:offset + num_results]
@@ -180,21 +175,29 @@ def find_product(request):
             product_id = product['id']
             metadata = PRODUCT_METADATA_CACHE.get(product_id, {})
             
-            # Use the calculated match score from filtering
             match_percentage = product.get('match_score', 0)
             quality = get_match_quality_from_percentage(match_percentage)
+            
+            image_urls = []
+            if 'imageUrls' in metadata and isinstance(metadata['imageUrls'], list):
+                image_urls = metadata['imageUrls']
+            elif 'imageUrl' in metadata and metadata['imageUrl']:
+                image_urls = [metadata['imageUrl']]
             
             results.append({
                 "id": product_id,
                 "title": metadata.get('title', 'Unknown'),
                 "location": metadata.get('location', 'N/A'),
-                "imageUrl": metadata.get('imageUrl', ''),
+                "imageUrl": image_urls[0] if image_urls else '',
+                "imageUrls": image_urls,
                 "description": metadata.get('description', ''),
                 "categories": metadata.get('categories', []),
                 "similarity_percentage": match_percentage,
                 "match_quality": quality,
                 "raw_distance": round(product['distance'], 4),
-                "search_mode": search_mode
+                "search_mode": search_mode,
+                "coordinates": metadata.get('coordinates'),
+                "is_low_confidence": product.get('is_low_confidence', False)
             })
         
         message = f"Found {len(filtered_products)} matching product(s)" if results else "No matching products found"
@@ -221,8 +224,6 @@ def filter_text_search_smart(products, text_query):
     text_query = text_query.strip().lower()
     keywords = text_query.split()
     
-    logging.info(f"Text search for keywords: {keywords}")
-    
     filtered = []
     
     for product in products:
@@ -232,29 +233,23 @@ def filter_text_search_smart(products, text_query):
         title = metadata.get('title', '').lower()
         description = metadata.get('description', '').lower()
         categories = ' '.join(metadata.get('categories', [])).lower()
-        combined_text = f"{title} {description} {categories}"
         
-        # Calculate keyword matching
         exact_matches = 0
         
         for keyword in keywords:
             if keyword in title:
-                exact_matches += 2  # Title matches are more important
+                exact_matches += 2
             elif keyword in description:
                 exact_matches += 1
             elif keyword in categories:
                 exact_matches += 1
         
-        # Only include if there are keyword matches
         if exact_matches == 0:
             continue
         
-        # Calculate match percentage
-        # For text: prioritize keyword matching
         keyword_percentage = min(100, (exact_matches / len(keywords)) * 100)
         vector_similarity = calculate_similarity_from_distance(product['distance'])
         
-        # 70% keyword + 30% vector similarity
         combined_score = (keyword_percentage * 0.7) + (vector_similarity * 0.3)
         
         product['match_score'] = round(combined_score, 1)
@@ -263,7 +258,6 @@ def filter_text_search_smart(products, text_query):
         
         filtered.append(product)
     
-    # Sort by keyword matches first, then similarity
     filtered.sort(key=lambda x: x['sort_score'], reverse=True)
     
     return filtered
@@ -271,20 +265,16 @@ def filter_text_search_smart(products, text_query):
 
 def filter_image_search_smart(products):
     """
-    Smart filtering for image searches.
-    For DOT PRODUCT: HIGHER distance = MORE similar!
-    STRICT FILTERING: Only show genuinely similar items.
+    Smart filtering for image searches with threshold.
     """
     filtered = []
     
     for product in products:
         distance = product['distance']
         
-        # STRICT: Only keep products with dot product > 0.5
         if distance < IMAGE_SEARCH_MIN_THRESHOLD:
             continue
         
-        # Calculate similarity: Higher dot product = Higher percentage
         similarity = min(100, distance * 100)
         
         product['match_score'] = round(similarity, 1)
@@ -292,23 +282,33 @@ def filter_image_search_smart(products):
         
         filtered.append(product)
     
-    # Sort by distance: HIGHEST first (most similar)
     filtered.sort(key=lambda x: x['sort_score'], reverse=True)
-    
-    logging.info(f"Image search: kept {len(filtered)} products with dot product > {IMAGE_SEARCH_MIN_THRESHOLD}")
     
     return filtered
 
 
-
+def filter_image_search_fallback(products):
+    """
+    Fallback filter for image search - returns best match regardless of threshold.
+    Used when no results pass the main threshold.
+    """
+    if not products:
+        return []
+    
+    # Just get the single best match
+    best_product = products[0]
+    
+    similarity = min(100, best_product['distance'] * 100)
+    best_product['match_score'] = round(similarity, 1)
+    best_product['sort_score'] = best_product['distance']
+    
+    logging.info(f"Fallback: returning best match '{PRODUCT_METADATA_CACHE.get(best_product['id'], {}).get('title', 'Unknown')}' with score {similarity}%")
+    
+    return [best_product]
 
 
 def calculate_similarity_from_distance(distance):
-    """
-    For DOT PRODUCT: Higher value = more similar.
-    Typical range: 0.0 (unrelated) to 1.0 (identical)
-    """
-    # Direct scaling: dot product is already 0-1 range
+    """For DOT PRODUCT: Higher value = more similar."""
     similarity = min(100, max(0, distance * 100))
     return round(similarity, 1)
 
@@ -326,28 +326,19 @@ def get_match_quality_from_percentage(percentage):
 
 
 def generate_image_embedding(image_base64, contextual_text=None):
-    """
-    Generate IMAGE-ONLY embedding for consistency with indexed products.
-    CRITICAL: Must match the indexing approach (image-only).
-    """
+    """Generate IMAGE-ONLY embedding."""
     try:
         model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
         image_bytes = base64.b64decode(image_base64)
         image = VertexImage(image_bytes=image_bytes)
         
-        # IMAGE ONLY - no text context for pure visual search
         embeddings = model.get_embeddings(
             image=image,
-            contextual_text=None,  # ← IMAGE ONLY!
+            contextual_text=None,
             dimension=512
         )
         
-        logging.info(f"Generated IMAGE-ONLY embedding: {len(embeddings.image_embedding)} dims")
         return embeddings.image_embedding
-        
-    except Exception as e:
-        logging.error(f"Failed to generate image embedding: {e}")
-        raise
         
     except Exception as e:
         logging.error(f"Failed to generate image embedding: {e}")

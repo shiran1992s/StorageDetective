@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 
 const toBase64 = file => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -9,15 +10,16 @@ const toBase64 = file => new Promise((resolve, reject) => {
 });
 
 function FindProduct() {
+  const { t, language } = useLanguage();
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [textQuery, setTextQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [message, setMessage] = useState('');
   const [searchInfo, setSearchInfo] = useState(null);
-  const [lastSearchPayload, setLastSearchPayload] = useState(null);
+  const [expandedImageGallery, setExpandedImageGallery] = useState(null);
+  const navigate = useNavigate();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -30,236 +32,302 @@ function FindProduct() {
     }
   };
 
-  const performSearch = async (offset = 0, append = false) => {
-    const isInitialSearch = offset === 0;
-    
-    if (isInitialSearch) {
-      setLoading(true);
-      setMessage('Searching for product...');
-      if (!append) setResults([]);
-    } else {
-      setLoadingMore(true);
+  const performSearch = async () => {
+    if (!imageFile && !textQuery.trim()) {
+      setMessage(t('upload.error'));
+      return;
     }
 
+    setLoading(true);
+    setMessage(t('find.searching'));
+    setResults([]);
+
     try {
-      let payload;
-      if (isInitialSearch) {
-        payload = { 
-          text_query: textQuery,
-          num_results: 1,
-          offset: 0
-        };
-        
-        if (imageFile) {
-          payload.image_base64 = await toBase64(imageFile);
-        }
-        
-        setLastSearchPayload(payload);
-      } else {
-        payload = {
-          ...lastSearchPayload,
-          num_results: 3,
-          offset: offset
-        };
+      let payload = { 
+        text_query: textQuery,
+        num_results: 20,
+        offset: 0
+      };
+      
+      if (imageFile) {
+        payload.image_base64 = await toBase64(imageFile);
       }
       
       const baseUrl = "https://storage-detective-find-product-agent-325488595361.us-west1.run.app";
-      const endpoint = '/find_product';
-
-      const response = await fetch(`${baseUrl}${endpoint}`, {
+      const response = await fetch(`${baseUrl}/find_product`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Search failed.');
+      if (!response.ok) throw new Error(data.message || 'Search failed');
       
-      if (append) {
-        setResults(prev => [...prev, ...data.results]);
-      } else {
-        setResults(data.results);
-      }
-      
+      setResults(data.results);
       setSearchInfo({
         totalMatches: data.total_matches,
-        hasMore: data.has_more,
         searchMode: data.search_mode
       });
       
-      setMessage(data.message || `Found ${data.total_matches} matching product(s)!`);
-      
-      if (isInitialSearch) {
-        setImageFile(null);
-        setPreview('');
-        setTextQuery('');
-      }
+      setMessage(data.message || `${t('find.results')} ${data.results.length}`);
       
     } catch (error) {
-      setMessage(`❌ Error: ${error.message}`);
+      setMessage(`${t('common.error')}: ${error.message}`);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   };
 
-  const handleSearch = () => performSearch(0, false);
-  
-  const handleLoadMore = () => {
-    if (searchInfo && searchInfo.hasMore) {
-      performSearch(results.length, true);
-    }
-  };
-
-  // Helper to get badge color based on match quality
   const getQualityBadge = (quality) => {
     const badges = {
       'excellent': 'bg-green-500 text-white',
-      'good': 'bg-blue-500 text-white', 
-      'fair': 'bg-yellow-500 text-black',
+      'good': 'bg-blue-500 text-white',
+      'fair': 'bg-yellow-500 text-white',
       'poor': 'bg-red-500 text-white'
     };
-    return badges[quality] || badges.fair;
+    return badges[quality] || 'bg-gray-500 text-white';
   };
 
-  // Helper to get similarity color - NOW CORRECT: Higher % = Better = Green
-  const getSimilarityColor = (percent) => {
-    if (percent >= 80) return 'text-green-700 font-bold';
-    if (percent >= 65) return 'text-blue-600 font-semibold';
-    if (percent >= 50) return 'text-yellow-600';
-    return 'text-red-600';
+  const openGoogleMaps = (coordinates) => {
+    if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
+      alert(t('upload.error'));
+      return;
+    }
+    const { latitude, longitude } = coordinates;
+    window.open(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`, '_blank');
   };
 
-  // Helper to get progress bar color
-  const getProgressBarColor = (percent) => {
-    if (percent >= 80) return 'bg-green-500';
-    if (percent >= 65) return 'bg-blue-500';
-    if (percent >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
+  const handleEditProduct = (productId) => {
+    navigate('/catalog', { state: { editProductId: productId } });
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
-      <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">← Back to Home</Link>
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-6">Find Product by Image or Description</h2>
-        <div className="space-y-4">
-          {/* Text input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Product Description</label>
-            <input 
-              type="text"
-              value={textQuery}
-              onChange={(e) => setTextQuery(e.target.value)}
-              placeholder="e.g., 'calculator', 'microwave', 'red pot'"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
+    <div className="max-w-6xl mx-auto p-8">
+      <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">
+        ← {t('find.backToHome')}
+      </Link>
 
-          <div className="text-center text-sm text-gray-500 font-semibold">OR</div>
+      <div className="bg-white p-8 rounded-lg shadow-md mb-8">
+        <h2 className="text-2xl font-bold mb-6">{t('find.title')}</h2>
 
-          {/* Image upload */}
-          <input 
-            type="file" 
-            accept="image/*" 
+        {/* Text Search */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t('find.textQuery')}
+          </label>
+          <input
+            type="text"
+            value={textQuery}
+            onChange={(e) => setTextQuery(e.target.value)}
+            placeholder={t('find.textQuery.placeholder')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
+        <div className="text-center text-gray-500 mb-6">{t('find.or')}</div>
+
+        {/* Image Upload */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t('find.uploadImage')}
+          </label>
+          <input
+            type="file"
+            accept="image/*"
             onChange={handleImageChange}
             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
           {preview && (
-            <div className="flex justify-center">
-              <img src={preview} alt="Preview" className="w-60 h-60 object-cover rounded-md border" />
+            <div className="mt-4 flex justify-center">
+              <img
+                src={preview}
+                alt="Preview"
+                className="w-60 h-60 object-cover rounded-md border"
+              />
             </div>
           )}
-          
-          <button 
-            onClick={handleSearch} 
-            disabled={loading || (!imageFile && !textQuery)}
-            className="w-full py-3 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition"
-          >
-            {loading ? 'Searching...' : 'Find Product'}
-          </button>
         </div>
-        
+
+        {/* Search Button */}
+        <button
+          onClick={performSearch}
+          disabled={loading}
+          className="w-full py-3 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition font-medium"
+        >
+          {loading ? t('find.searching') : `🔍 ${t('find.button')}`}
+        </button>
+
         {message && (
-          <div className="mt-4">
-            <p className="text-center text-gray-600">{message}</p>
-            {searchInfo && searchInfo.searchMode && (
-              <p className="text-center text-sm text-gray-500 mt-1">
-                Search mode: {searchInfo.searchMode === 'image' ? '📷 Visual similarity' : '📝 Text matching'}
+          <p className="mt-4 text-center text-gray-700 font-medium">{message}</p>
+        )}
+      </div>
+
+      {/* Results */}
+      {results.length > 0 && (
+        <div>
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-gray-800">
+              {t('find.results')} ({results.length})
+            </h3>
+            {searchInfo && (
+              <p className="text-sm text-gray-600 mt-1">
+                {t('find.searchMode')}: <span className="font-semibold">{searchInfo.searchMode}</span>
               </p>
             )}
           </div>
-        )}
-      </div>
-      
-      {results.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-xl font-bold mb-4">
-            Search Results ({results.length}{searchInfo && searchInfo.totalMatches > results.length ? ` of ${searchInfo.totalMatches}` : ''})
-          </h3>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {results.map((item, index) => (
-              <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all border-2 border-transparent hover:border-blue-300">
-                {/* Best Match Badge */}
+              <div 
+                key={item.id} 
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all border-2 border-transparent hover:border-blue-300"
+              >
+                {/* Badge */}
                 {index === 0 && (
-                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 text-xs font-bold px-3 py-2 text-center">
-                    🏆 BEST MATCH
+                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-center py-2 font-bold">
+                    🏆 {t('result.bestMatch')}
                   </div>
                 )}
-                
-                {/* Product Image */}
-                <div className="relative">
-                  <img src={item.imageUrl} alt={item.title} className="w-full h-48 object-cover" />
-                  {/* Quality Badge on Image */}
-                  <span className={`absolute top-2 right-2 text-xs px-3 py-1 rounded-full font-bold shadow-lg ${getQualityBadge(item.match_quality)}`}>
-                    {item.match_quality.toUpperCase()}
-                  </span>
+
+                {/* Low Confidence Warning */}
+                {item.is_low_confidence && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3">
+                    <p className="text-xs text-yellow-800 font-medium">
+                      ⚠️ {language === 'he' 
+                        ? 'לא נמצאו התאמות מדויקות. מציג תוצאה הכי קרובה.' 
+                        : 'No close matches found. Showing best available result.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Image with Gallery Indicator */}
+                <div className="relative h-48 cursor-pointer" onClick={() => setExpandedImageGallery(item)}>
+                  {item.imageUrl ? (
+                    <>
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                      {item.imageUrls && item.imageUrls.length > 1 && (
+                        <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                          📷 {item.imageUrls.length} {t('catalog.photos')}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-4xl">📷</span>
+                    </div>
+                  )}
+                  
+                  {/* Quality Badge */}
+                  <div className={`absolute top-2 left-2 px-3 py-1 rounded-full font-bold text-xs ${getQualityBadge(item.match_quality)}`}>
+                    {t(`result.quality.${item.match_quality}`)}
+                  </div>
                 </div>
-                
+
                 {/* Product Info */}
                 <div className="p-4">
                   <h4 className="font-bold text-lg mb-2">{item.title}</h4>
-                  <p className="text-gray-600 text-sm mb-2">📍 {item.location}</p>
-                  {item.description && (
-                    <p className="text-gray-500 text-sm mb-3 line-clamp-2">{item.description}</p>
-                  )}
-                  
-                  {/* Similarity Score Section */}
-                  <div className="border-t pt-3 mt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-gray-500 font-medium">
-                        {item.search_mode === 'text' ? 'Relevance Score' : 'Similarity Score'}
-                      </span>
-                      <span className={`text-2xl font-bold ${getSimilarityColor(item.similarity_percentage)}`}>
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                    {item.description || 'No description'}
+                  </p>
+
+                  {/* Location */}
+                  <div className="flex items-center text-sm text-gray-500 mb-3">
+                    <span className="flex-1">📍 {item.location}</span>
+                  </div>
+
+                  {/* Similarity Score */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">{t('result.similarity')}</span>
+                      <span className={`font-bold ${
+                        item.similarity_percentage >= 70 ? 'text-green-600' :
+                        item.similarity_percentage >= 50 ? 'text-blue-600' :
+                        'text-red-600'
+                      }`}>
                         {item.similarity_percentage}%
                       </span>
                     </div>
-                    
-                    {/* Progress Bar */}
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${getProgressBarColor(item.similarity_percentage)}`}
-                        style={{width: `${item.similarity_percentage}%`}}
+                      <div
+                        className={`h-2 rounded-full ${
+                          item.similarity_percentage >= 70 ? 'bg-green-500' :
+                          item.similarity_percentage >= 50 ? 'bg-blue-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${item.similarity_percentage}%` }}
                       ></div>
                     </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {item.coordinates && (
+                      <button
+                        onClick={() => openGoogleMaps(item.coordinates)}
+                        className="flex-1 py-2 px-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition font-medium text-sm"
+                      >
+                        🗺️ {t('result.map')}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleEditProduct(item.id)}
+                      className="flex-1 py-2 px-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition font-medium text-sm"
+                    >
+                      ✏️ {t('result.edit')}
+                    </button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          
-          {/* Load More Button */}
-          {searchInfo && searchInfo.hasMore && (
-            <div className="flex justify-center mt-6">
+        </div>
+      )}
+
+      {/* Image Gallery Modal */}
+      {expandedImageGallery && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50"
+          onClick={() => setExpandedImageGallery(null)}
+        >
+          <div className="max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white text-2xl font-bold">{expandedImageGallery.title}</h3>
               <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-400 transition font-medium"
+                onClick={() => setExpandedImageGallery(null)}
+                className="text-white text-3xl hover:text-gray-300"
               >
-                {loadingMore ? 'Loading...' : `Load More (${searchInfo.totalMatches - results.length} remaining)`}
+                ✕
               </button>
             </div>
-          )}
+            
+            {/* Image Grid */}
+            {expandedImageGallery.imageUrls && expandedImageGallery.imageUrls.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {expandedImageGallery.imageUrls.map((url, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`${expandedImageGallery.title} ${index + 1}`}
+                      className="w-full h-64 object-cover rounded-lg"
+                    />
+                    <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                      #{index + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <img
+                src={expandedImageGallery.imageUrl}
+                alt={expandedImageGallery.title}
+                className="w-full max-h-[80vh] object-contain rounded-lg"
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
