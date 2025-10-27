@@ -7,14 +7,6 @@ import { useLanguage } from '../context/LanguageContext';
 
 const MAX_IMAGES = 10;
 
-function isIOS() {
-  return (
-    typeof window !== 'undefined' &&
-    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-    !window.MSStream
-  );
-}
-
 export default function UploadProduct() {
   const { t, language } = useLanguage();
   const [productName, setProductName] = useState('');
@@ -169,73 +161,43 @@ export default function UploadProduct() {
             />
           </div>
 
-          {/* Multi-Image Input */}
+          {/* Multi-Image Input - UNIVERSAL APPROACH */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('upload.images')} ({imageFiles.length}/{MAX_IMAGES}) *
             </label>
             
             {imageFiles.length < MAX_IMAGES && (
-              isIOS() ? (
-                <div className="space-y-3">
-                  {/* iOS: Camera Button */}
-                  <label className="block w-full cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      capture="environment"
-                      onChange={handleMultiPhotoInput}
-                      className="hidden"
-                    />
-                    <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
-                      📸 {t('upload.takePhoto')}
-                    </div>
-                  </label>
+              <div className="space-y-3">
+                {/* Camera Button - Works on ALL devices */}
+                <label className="block w-full cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    capture="environment"
+                    onChange={handleMultiPhotoInput}
+                    className="hidden"
+                  />
+                  <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
+                    📸 {t('upload.takePhoto')}
+                  </div>
+                </label>
 
-                  {/* iOS: Photo Library Button */}
-                  <label className="block w-full cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleMultiPhotoInput}
-                      className="hidden"
-                    />
-                    <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
-                      🖼️ {t('upload.chooseFromGallery')}
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <label className="block w-full cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      capture="environment"
-                      onChange={handleMultiPhotoInput}
-                      className="hidden"
-                    />
-                    <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
-                      📸 {t('upload.takePhoto')}
-                    </div>
-                  </label>
-                  <label className="block w-full cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleMultiPhotoInput}
-                      className="hidden"
-                    />
-                    <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
-                      🖼️ {t('upload.chooseFromGallery')}
-                    </div>
-                  </label>
-                </div>
-              )
+                {/* Gallery Button - Works on ALL devices */}
+                <label className="block w-full cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleMultiPhotoInput}
+                    className="hidden"
+                  />
+                  <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
+                    🖼️ {t('upload.chooseFromGallery')}
+                  </div>
+                </label>
+              </div>
             )}
 
             {/* Image Previews */}

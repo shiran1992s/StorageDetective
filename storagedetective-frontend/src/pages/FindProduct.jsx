@@ -9,14 +9,6 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
-function isIOS() {
-  return (
-    typeof window !== 'undefined' &&
-    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-    !window.MSStream
-  );
-}
-
 function FindProduct() {
   const { t, language } = useLanguage();
   const [imageFile, setImageFile] = useState(null);
@@ -124,68 +116,40 @@ function FindProduct() {
 
         <div className="text-center text-gray-500 mb-6">{t('find.or')}</div>
 
-        {/* Image Upload */}
+        {/* Image Upload - UNIVERSAL APPROACH */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('find.uploadImage')}
           </label>
           
-          {isIOS() ? (
-            <div className="space-y-3">
-              {/* iOS: Camera Button */}
-              <label className="block w-full cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
-                  📸 {t('find.takePhoto')}
-                </div>
-              </label>
+          <div className="space-y-3">
+            {/* Camera Button */}
+            <label className="block w-full cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
+                📸 {t('find.takePhoto')}
+              </div>
+            </label>
 
-              {/* iOS: Photo Library Button */}
-              <label className="block w-full cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
-                  🖼️ {t('find.chooseFromGallery')}
-                </div>
-              </label>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <label className="block w-full cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
-                  📸 {t('find.takePhoto')}
-                </div>
-              </label>
-              <label className="block w-full cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
-                  🖼️ {t('find.chooseFromGallery')}
-                </div>
-              </label>
-            </div>
-          )}
+            {/* Gallery Button */}
+            <label className="block w-full cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
+                🖼️ {t('find.chooseFromGallery')}
+              </div>
+            </label>
+          </div>
 
           {preview && (
             <div className="mt-4 flex justify-center">
