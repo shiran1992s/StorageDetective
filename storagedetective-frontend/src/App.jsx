@@ -50,52 +50,6 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
-      <header className="bg-white shadow-lg border-b-2 border-blue-100">
-        <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">🔍</span>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">{t('app.title')}</h1>
-              <p className="text-xs text-gray-500">{t('app.subtitle')}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Language Toggle Button */}
-            <button
-              onClick={toggleLanguage}
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-md font-medium flex items-center gap-2"
-              title={language === 'en' ? 'Switch to Hebrew' : 'Switch to English'}
-            >
-              <span className="text-lg">{language === 'en' ? '🇮🇱' : '🇺🇸'}</span>
-              <span>{language === 'en' ? 'עברית' : 'English'}</span>
-            </button>
-
-            {user && (
-              <>
-                <div className={`text-right hidden md:block ${language === 'he' ? 'text-left' : ''}`}>
-                  <p className="text-sm font-medium text-gray-700">{user.displayName}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
-                </div>
-                {user.photoURL && (
-                  <img 
-                    src={user.photoURL} 
-                    alt="Profile" 
-                    className="w-10 h-10 rounded-full border-2 border-blue-200"
-                  />
-                )}
-                <button 
-                  onClick={handleLogout} 
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all transform hover:scale-105 shadow-md font-medium"
-                >
-                  {t('app.logout')}
-                </button>
-              </>
-            )}
-          </div>
-        </nav>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
         {!user ? (
           <div className="flex items-center justify-center min-h-[70vh]">
@@ -127,19 +81,6 @@ function AppContent() {
           </Routes>
         )}
       </main>
-
-      {user && (
-        <footer className="bg-white border-t-2 border-blue-100 mt-12">
-          <div className="container mx-auto px-6 py-6 text-center">
-            <p className="text-sm text-gray-600">
-              Powered by <span className="font-semibold text-blue-600">Google Cloud Vertex AI</span> • Vector Search • Firebase
-            </p>
-            <p className="text-xs text-gray-400 mt-2">
-              Made with ❤️ for efficient storage management
-            </p>
-          </div>
-        </footer>
-      )}
     </div>
   );
 }

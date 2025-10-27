@@ -136,11 +136,10 @@ def fetch_all_products():
             products.append({
                 'id': product.get('id', product.get('internalId')),
                 'title': product.get('title', 'Unknown'),
+				'catalogNumber': product.get('catalogNumber', 'N/A'),
                 'description': product.get('description', ''),
-                'location': product.get('productLocation', product.get('location', 'N/A')),
-                'coordinates': product.get('coordinates'),
-                'imageUrls': image_urls,  # Array of ALL images
-                'imageUrl': image_urls[0] if image_urls else '',  # Primary image for backward compatibility
+				'imageUrl': image_urls[0] if image_urls else '',
+                'imageUrls': image_urls,
                 'categories': product.get('categories', []),
                 'available_time': product.get('available_time', '')
             })
@@ -168,11 +167,9 @@ def update_product(product_id, updated_data):
     struct_data['internalId'] = product_id
     struct_data['title'] = updated_data.get('title', struct_data.get('title', ''))
     struct_data['description'] = updated_data.get('description', struct_data.get('description', ''))
-    struct_data['productLocation'] = updated_data.get('location', struct_data.get('productLocation', ''))
-    
-    if 'coordinates' in updated_data and updated_data['coordinates']:
-        struct_data['coordinates'] = updated_data['coordinates']
-    
+    struct_data['structData']['catalogNumber'] = product_data.get('catalogNumber', 'N/A')
+
+     
     # Update images array
     if 'imageUrls' in updated_data:
         struct_data['images'] = [{'uri': url} for url in updated_data['imageUrls']]

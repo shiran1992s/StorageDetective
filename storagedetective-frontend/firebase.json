@@ -1,7 +1,7 @@
 {
   "hosting": [
     {
-      "target": "main-front",  // <-- Change "app" to "main" here
+      "target": "main",
       "public": "dist",
       "ignore": [
         "firebase.json",
@@ -13,6 +13,15 @@
           "source": "**",
           "destination": "/index.html"
         }
+      ]
+    },
+    {
+      "target": "landing",
+      "public": "landing",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
       ]
     }
   ]

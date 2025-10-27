@@ -1,12 +1,13 @@
 {
-  "projects": {
-    "main-front": "storagedetective"
-  },
+  "projects": {},
   "targets": {
     "storagedetective": {
       "hosting": {
-        "main-front": [
+        "main": [
           "storagedetective"
+        ],
+        "landing": [
+          "storagedetective-landing"
         ]
       }
     }

@@ -9,6 +9,14 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
+function isIOS() {
+  return (
+    typeof window !== 'undefined' &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !window.MSStream
+  );
+}
+
 function FindProduct() {
   const { t, language } = useLanguage();
   const [imageFile, setImageFile] = useState(null);
@@ -88,22 +96,13 @@ function FindProduct() {
     return badges[quality] || 'bg-gray-500 text-white';
   };
 
-  const openGoogleMaps = (coordinates) => {
-    if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
-      alert(t('upload.error'));
-      return;
-    }
-    const { latitude, longitude } = coordinates;
-    window.open(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`, '_blank');
-  };
-
   const handleEditProduct = (productId) => {
     navigate('/catalog', { state: { editProductId: productId } });
   };
 
   return (
     <div className="max-w-6xl mx-auto p-8">
-      <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">
+      <Link to="/home" className="text-blue-500 hover:underline mb-4 inline-block">
         ← {t('find.backToHome')}
       </Link>
 
@@ -119,7 +118,6 @@ function FindProduct() {
             type="text"
             value={textQuery}
             onChange={(e) => setTextQuery(e.target.value)}
-            placeholder={t('find.textQuery.placeholder')}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
@@ -131,12 +129,64 @@ function FindProduct() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('find.uploadImage')}
           </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
+          
+          {isIOS() ? (
+            <div className="space-y-3">
+              {/* iOS: Camera Button */}
+              <label className="block w-full cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
+                  📸 {t('find.takePhoto')}
+                </div>
+              </label>
+
+              {/* iOS: Photo Library Button */}
+              <label className="block w-full cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
+                  🖼️ {t('find.chooseFromGallery')}
+                </div>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <label className="block w-full cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <div className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center flex items-center justify-center gap-2">
+                  📸 {t('find.takePhoto')}
+                </div>
+              </label>
+              <label className="block w-full cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <div className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center flex items-center justify-center gap-2">
+                  🖼️ {t('find.chooseFromGallery')}
+                </div>
+              </label>
+            </div>
+          )}
+
           {preview && (
             <div className="mt-4 flex justify-center">
               <img
@@ -230,14 +280,17 @@ function FindProduct() {
                 {/* Product Info */}
                 <div className="p-4">
                   <h4 className="font-bold text-lg mb-2">{item.title}</h4>
+                  
+                  {/* Catalog Number */}
+                  {item.catalogNumber && item.catalogNumber !== 'N/A' && (
+                    <div className="text-sm text-gray-600 mb-2">
+                      <span className="font-semibold">{t('result.catalogNumber')}:</span> {item.catalogNumber}
+                    </div>
+                  )}
+
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                     {item.description || 'No description'}
                   </p>
-
-                  {/* Location */}
-                  <div className="flex items-center text-sm text-gray-500 mb-3">
-                    <span className="flex-1">📍 {item.location}</span>
-                  </div>
 
                   {/* Similarity Score */}
                   <div className="mb-4">
@@ -263,23 +316,13 @@ function FindProduct() {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    {item.coordinates && (
-                      <button
-                        onClick={() => openGoogleMaps(item.coordinates)}
-                        className="flex-1 py-2 px-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition font-medium text-sm"
-                      >
-                        🗺️ {t('result.map')}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleEditProduct(item.id)}
-                      className="flex-1 py-2 px-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition font-medium text-sm"
-                    >
-                      ✏️ {t('result.edit')}
-                    </button>
-                  </div>
+                  {/* Edit Button */}
+                  <button
+                    onClick={() => handleEditProduct(item.id)}
+                    className="w-full py-2 px-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition font-medium text-sm"
+                  >
+                    ✏️ {t('result.edit')}
+                  </button>
                 </div>
               </div>
             ))}

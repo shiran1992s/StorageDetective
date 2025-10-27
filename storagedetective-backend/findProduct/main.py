@@ -84,12 +84,11 @@ def load_product_metadata():
                     PRODUCT_METADATA_CACHE[product_id] = {
                         'title': product.get('title', 'Unknown'),
                         'description': product.get('description', ''),
-                        'location': product.get('productLocation', product.get('location', 'N/A')),
+                        'catalogNumber': product.get('catalogNumber', 'N/A'),
                         'imageUrls': image_urls,
                         'imageUrl': image_urls[0] if image_urls else '',
                         'categories': product.get('categories', []),
-                        'available_time': product.get('available_time', ''),
-                        'coordinates': product.get('coordinates', None)
+                        'available_time': product.get('available_time', '')
                     }
                     
                     count += 1
@@ -187,7 +186,7 @@ def find_product(request):
             results.append({
                 "id": product_id,
                 "title": metadata.get('title', 'Unknown'),
-                "location": metadata.get('location', 'N/A'),
+                "catalogNumber": metadata.get('catalogNumber', 'N/A'),
                 "imageUrl": image_urls[0] if image_urls else '',
                 "imageUrls": image_urls,
                 "description": metadata.get('description', ''),
@@ -196,7 +195,6 @@ def find_product(request):
                 "match_quality": quality,
                 "raw_distance": round(product['distance'], 4),
                 "search_mode": search_mode,
-                "coordinates": metadata.get('coordinates'),
                 "is_low_confidence": product.get('is_low_confidence', False)
             })
         
