@@ -1,0 +1,16 @@
+{
+  "projects": {},
+  "targets": {
+    "storagedetective": {
+      "hosting": {
+        "main": [
+          "storagedetective"
+        ],
+        "landing": [
+          "storagedetective-landing"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

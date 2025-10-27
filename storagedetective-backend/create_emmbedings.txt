@@ -1,0 +1,177 @@
+# generate_embeddings.py - BULK RE-INDEX WITH IMAGE-ONLY EMBEDDINGS
+import json
+import vertexai
+from vertexai.vision_models import MultiModalEmbeddingModel, Image as VertexImage
+from google.cloud import storage, aiplatform
+import requests
+
+PROJECT_ID = "storagedetective"
+PROJECT_NUMBER = "325488595361"
+LOCATION = "us-central1"
+SOURCE_BUCKET = "storagedetective.firebasestorage.app"
+SOURCE_PREFIX = "json/"
+EMBEDDING_DIMENSION = 512
+
+# Index ID
+INDEX_ID = "8707413011381354496"
+INDEX_NAME = f"projects/{PROJECT_NUMBER}/locations/{LOCATION}/indexes/{INDEX_ID}"
+
+# Initialize
+vertexai.init(project=PROJECT_ID, location=LOCATION)
+aiplatform.init(project=PROJECT_ID, location=LOCATION)
+
+
+def fetch_products_from_gcs():
+    """Read all JSON files from GCS bucket."""
+    print(f"Fetching products from gs://{SOURCE_BUCKET}/{SOURCE_PREFIX}...")
+    
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(SOURCE_BUCKET)
+    blobs = bucket.list_blobs(prefix=SOURCE_PREFIX)
+    
+    products = []
+    
+    for blob in blobs:
+        if blob.name.endswith('/') or not blob.name.endswith('.json'):
+            continue
+            
+        try:
+            json_string = blob.download_as_string()
+            json_data = json.loads(json_string)
+            
+            if 'structData' in json_data:
+                product = json_data['structData']
+                if 'internalId' not in product and 'id' in json_data:
+                    product['internalId'] = json_data['id']
+            else:
+                product = json_data
+            
+            if 'internalId' in product and ('uri' in product or 'images' in product):
+                products.append(product)
+                print(f"✓ Loaded: {product.get('title', 'Unknown')} (ID: {product['internalId']})")
+                
+        except Exception as e:
+            print(f"✗ Error reading {blob.name}: {e}")
+    
+    print(f"\n✓ Loaded {len(products)} products")
+    return products
+
+
+def generate_embeddings_for_products():
+    """Generate IMAGE-ONLY embeddings for all products."""
+    
+    print("\n" + "="*60)
+    print("RE-INDEXING WITH IMAGE-ONLY EMBEDDINGS")
+    print("="*60 + "\n")
+    
+    products = fetch_products_from_gcs()
+    
+    if not products:
+        print("No products found!")
+        return 0
+    
+    # Initialize model
+    model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
+    
+    # Get index
+    my_index = aiplatform.MatchingEngineIndex(index_name=INDEX_NAME)
+    
+    success_count = 0
+    error_count = 0
+    batch_datapoints = []
+    BATCH_SIZE = 100
+    
+    for idx, product in enumerate(products, 1):
+        try:
+            print(f"[{idx}/{len(products)}] Processing: {product.get('title', 'Unknown')}")
+            
+            # Get image URI
+            image_uri = None
+            if 'images' in product and len(product['images']) > 0:
+                image_uri = product['images'][0].get('uri')
+            elif 'uri' in product:
+                image_uri = product['uri']
+            
+            if not image_uri:
+                print(f"  ⚠ No image URI, skipping...")
+                error_count += 1
+                continue
+            
+            # Download image
+            print(f"  → Downloading image...")
+            image_bytes = requests.get(image_uri, timeout=10).content
+            image = VertexImage(image_bytes=image_bytes)
+            
+            # CRITICAL: Generate IMAGE-ONLY embedding
+            print(f"  → Generating IMAGE-ONLY embedding...")
+            embeddings = model.get_embeddings(
+                image=image,
+                contextual_text=None,  # ← IMAGE ONLY!
+                dimension=EMBEDDING_DIMENSION
+            )
+            
+            # Create datapoint
+            datapoint = {
+                "datapoint_id": product['internalId'],
+                "feature_vector": embeddings.image_embedding
+            }
+            
+            batch_datapoints.append(datapoint)
+            
+            # Upload batch
+            if len(batch_datapoints) >= BATCH_SIZE:
+                print(f"\n  → Uploading batch of {len(batch_datapoints)} embeddings...")
+                my_index.upsert_datapoints(datapoints=batch_datapoints)
+                success_count += len(batch_datapoints)
+                batch_datapoints = []
+                print(f"  ✓ Batch uploaded\n")
+            else:
+                print(f"  ✓ Added to batch ({len(batch_datapoints)}/{BATCH_SIZE})\n")
+            
+        except Exception as e:
+            error_count += 1
+            print(f"  ✗ Failed: {e}\n")
+    
+    # Upload remaining
+    if batch_datapoints:
+        print(f"\n→ Uploading final batch of {len(batch_datapoints)} embeddings...")
+        my_index.upsert_datapoints(datapoints=batch_datapoints)
+        success_count += len(batch_datapoints)
+        print(f"✓ Final batch uploaded\n")
+    
+    print("\n" + "="*60)
+    print(f"SUMMARY: {success_count} succeeded, {error_count} failed")
+    print("="*60)
+    print("\n✓ All products re-indexed with IMAGE-ONLY embeddings")
+    print("✓ Products will be searchable within 1-2 minutes")
+    print("\n")
+    
+    return success_count
+
+
+def main():
+    """Main execution."""
+    
+    print("\n" + "="*60)
+    print("BULK RE-INDEXING SCRIPT")
+    print("This will replace all embeddings with IMAGE-ONLY versions")
+    print("="*60 + "\n")
+    
+    confirm = input("Continue? (yes/no): ")
+    if confirm.lower() != 'yes':
+        print("Cancelled.")
+        return
+    
+    total = generate_embeddings_for_products()
+    
+    if total > 0:
+        print("\n" + "="*60)
+        print("COMPLETE!")
+        print("="*60)
+        print(f"\n✓ Re-indexed {total} products with IMAGE-ONLY embeddings")
+        print(f"✓ Wait 2-3 minutes, then test image search")
+        print("\n")
+
+
+if __name__ == "__main__":
+    main()
